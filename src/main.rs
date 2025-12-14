@@ -63,34 +63,16 @@ fn refresh_hardware_configuration() -> Result<(), String> {
 }
 
 fn main() {
-    println!("1. Запуск обновления конфигурации оборудования...");
+    println!("Запуск обновления конфигурации оборудования...");
     
     match refresh_hardware_configuration() {
-        Ok(_) => println!(">>> Конфигурация оборудования успешно обновлена!"),
-        Err(e) => eprintln!(">>> Ошибка: {}", e),
+        Ok(_) => println!("Конфигурация оборудования успешно обновлена!"),
+        Err(e) => eprintln!("Ошибка: {}", e),
     }
 
-    // Пауза перед перезапуском проводника
+    // Добавить паузу на 10 секунд
     std::thread::sleep(std::time::Duration::from_secs(3));
 
-    // Перезапуск "Проводник"
-    println!("2. Перезапуск проводника...");
-    
-    // Завершаем процесс explorer.exe
-    let _ = std::process::Command::new("taskkill")
-        .args(&["/F", "/IM", "explorer.exe"])
-        .output();
-    
-    // Ждем немного, чтобы процесс полностью завершился
-    std::thread::sleep(std::time::Duration::from_secs(2));
-    
-    // Запускаем explorer.exe снова
-    match std::process::Command::new("explorer.exe").spawn() {
-        Ok(_) => println!(">>> Проводник успешно перезапущен!"),
-        Err(e) => eprintln!(">>> Ошибка при запуске проводника: {}", e),
-    }
-
-    // Пауза перед завершением программы
-    println!("3. Завершение программы...");
-    std::thread::sleep(std::time::Duration::from_secs(3));
+    // Презагрузка "Проводник"
+    std::process::Command::new("explorer.exe").spawn().unwrap();
 }

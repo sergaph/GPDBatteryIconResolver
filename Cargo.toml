@@ -5,3 +5,6 @@ edition = "2024"
 
 [dependencies]
 winapi = { version = "0.3", features = ["cfgmgr32", "winerror", "setupapi", "winbase", "handleapi"] }
+
+[build-dependencies]
+winres = "0.1"
