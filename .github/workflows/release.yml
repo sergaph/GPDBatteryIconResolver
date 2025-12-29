@@ -1,0 +1,92 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v1.0.0)'
+        required: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      
+      - name: Cache cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: Build release
+        run: cargo build --release
+      
+      - name: Get version from tag
+        id: get_version
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $version = "${{ github.event.inputs.tag }}"
+          } else {
+            $version = "${{ github.ref }}".Replace("refs/tags/", "")
+          }
+          echo "VERSION=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "Version: $version"
+        shell: pwsh
+      
+      - name: Generate checksums
+        run: |
+          $exe = "target\release\GPDBatteryIconResolver.exe"
+          $sha256 = (Get-FileHash -Path $exe -Algorithm SHA256).Hash
+          $sha256 | Out-File -FilePath "GPDBatteryIconResolver.exe.sha256" -Encoding ASCII
+          Write-Host "SHA256: $sha256"
+      
+      - name: Create release archive
+        run: |
+          $version = "${{ steps.get_version.outputs.VERSION }}"
+          $archiveName = "GPDBatteryIconResolver-$version-windows-x64.zip"
+          Compress-Archive -Path "target\release\GPDBatteryIconResolver.exe", "GPDBatteryIconResolver.exe.sha256" -DestinationPath $archiveName
+          Write-Host "Created archive: $archiveName"
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: |
+            target/release/GPDBatteryIconResolver.exe
+            GPDBatteryIconResolver.exe.sha256
+            GPDBatteryIconResolver-*.zip
+          retention-days: 30
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
+          name: Release ${{ steps.get_version.outputs.VERSION }}
+          files: |
+            target/release/GPDBatteryIconResolver.exe
+            GPDBatteryIconResolver.exe.sha256
+            GPDBatteryIconResolver-*.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
